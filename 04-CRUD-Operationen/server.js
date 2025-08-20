@@ -44,9 +44,15 @@ const Note = sequelize.define(
   }
 );
 
-// Assoziationen: 1:n Beziehung zwischen User und Note
-User.hasMany(Note); // User kann viele Notes haben
-Note.belongsTo(User); // Note gehört zu einem User (erstellt automatisch userId foreign key)
+//  Assoziationen: 1:n Beziehung zwischen User und Note
+// User.hasMany(Note); // User kann viele Notes haben
+// Note.belongsTo(User); // Note gehört zu einem User (erstellt automatisch userId foreign key)
+
+// Assoziationen: n:n Beziehung über Verknüpfungstabelle UserNotes
+// erstellt automatisch userId und noteId
+const UsersNotes = sequelize.define('UsersNotes');
+User.belongsToMany(Note, { through: 'UsersNotes' });
+Note.belongsToMany(User, { through: 'UsersNotes' });
 
 // Sync: Erstellt Tabellen basierend auf Modell-Definitionen
 sequelize.sync();
@@ -167,7 +173,11 @@ app.post('/notes', async (req, res) => {
   const { content, userId } = req.body;
   try {
     // Foreign Key wird automatisch durch belongsTo-Assoziation gesetzt
-    const note = await Note.create({ content, userId });
+    // const note = await Note.create({ content, userId });
+
+    // Bei n:n Beziehung erstellen wir erst die Notiz, dann den Eintrag in der Verknüpfungstabelle
+    const note = await Note.create({ content });
+    await UsersNotes.create({ userId, noteId: note.id });
 
     res.status(201).json({ data: note });
   } catch (error) {
@@ -209,6 +219,20 @@ app.put('/notes/:id', async (req, res) => {
     // const [rowCount, notes] = await Note.update({ content }, { returning: true });
 
     res.json({ data: note });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// Spezieller Endpunkt, um weiteren Nutzer mit einer Notiz zu verknüpfen
+// update und delete Endpunkte wären ebenso nötig
+app.put('/notes/:noteId/users/:userId', async (req, res) => {
+  const { noteId, userId } = req.params;
+  try {
+    const assoziation = await UsersNotes.create({ userId, noteId });
+
+    res.json({ data: assoziation });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: 'Server error' });
