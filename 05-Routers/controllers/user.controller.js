@@ -1,5 +1,5 @@
 import { ValidationError } from 'sequelize';
-import { User } from '../models/index.js';
+import { User, Note } from '../models/index.js';
 
 const createUser = async (req, res) => {
   const { firstName, lastName, email } = req.body;
